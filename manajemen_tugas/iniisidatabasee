@@ -1,0 +1,112 @@
+-- Database Schema untuk Sistem Pengumpulan dan Penilaian Tugas Mahasiswa
+
+CREATE DATABASE sistem_tugas_mahasiswa;
+USE sistem_tugas_mahasiswa;
+
+-- Tabel Users (Admin/Dosen dan Mahasiswa)
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role ENUM('admin', 'mahasiswa') NOT NULL,
+    nim VARCHAR(20) NULL, -- Untuk mahasiswa
+    nip VARCHAR(20) NULL, -- Untuk dosen
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabel Mata Kuliah
+CREATE TABLE mata_kuliah (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    kode_mk VARCHAR(10) UNIQUE NOT NULL,
+    nama_mk VARCHAR(100) NOT NULL,
+    sks INT NOT NULL,
+    dosen_id INT NOT NULL,
+    semester VARCHAR(10) NOT NULL,
+    tahun_ajaran VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (dosen_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Tabel Tugas
+CREATE TABLE tugas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    mata_kuliah_id INT NOT NULL,
+    judul VARCHAR(200) NOT NULL,
+    deskripsi TEXT NOT NULL,
+    deadline DATETIME NOT NULL,
+    max_file_size INT DEFAULT 5242880, -- 5MB dalam bytes
+    allowed_extensions VARCHAR(100) DEFAULT 'pdf,doc,docx,zip,rar',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE
+);
+
+-- Tabel Pengumpulan Tugas
+CREATE TABLE pengumpulan_tugas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tugas_id INT NOT NULL,
+    mahasiswa_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_size INT NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_late BOOLEAN DEFAULT FALSE,
+    nilai DECIMAL(5,2) NULL,
+    feedback TEXT NULL,
+    graded_at TIMESTAMP NULL,
+    graded_by INT NULL,
+    status ENUM('submitted', 'graded', 'revision') DEFAULT 'submitted',
+    FOREIGN KEY (tugas_id) REFERENCES tugas(id) ON DELETE CASCADE,
+    FOREIGN KEY (mahasiswa_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (graded_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_submission (tugas_id, mahasiswa_id)
+);
+
+-- Tabel Enrollment (Mahasiswa terdaftar di mata kuliah)
+CREATE TABLE enrollments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    mahasiswa_id INT NOT NULL,
+    mata_kuliah_id INT NOT NULL,
+    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (mahasiswa_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_enrollment (mahasiswa_id, mata_kuliah_id)
+);
+
+-- Tabel Notifikasi/Peringatan
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('warning', 'info', 'success', 'danger') DEFAULT 'info',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Insert data dummy untuk testing
+INSERT INTO users (username, email, password, full_name, role, nip) VALUES
+('admin', 'admin@univ.ac.id', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dr. Ahmad Susanto', 'admin', '198501012010011001');
+
+INSERT INTO users (username, email, password, full_name, role, nim) VALUES
+('mahasiswa1', 'mhs1@student.univ.ac.id', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Budi Santoso', 'mahasiswa', '2021001001'),
+('mahasiswa2', 'mhs2@student.univ.ac.id', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Siti Nurhaliza', 'mahasiswa', '2021001002'),
+('mahasiswa3', 'mhs3@student.univ.ac.id', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Andi Wijaya', 'mahasiswa', '2021001003');
+
+INSERT INTO mata_kuliah (kode_mk, nama_mk, sks, dosen_id, semester, tahun_ajaran) VALUES
+('TI001', 'Pemrograman Web', 3, 1, 'Ganjil', '2024/2025'),
+('TI002', 'Basis Data', 3, 1, 'Ganjil', '2024/2025');
+
+INSERT INTO enrollments (mahasiswa_id, mata_kuliah_id) VALUES
+(2, 1), (3, 1), (4, 1),
+(2, 2), (3, 2), (4, 2);
+
+INSERT INTO tugas (mata_kuliah_id, judul, deskripsi, deadline) VALUES
+(1, 'Project Website Portofolio', 'Buatlah website portofolio pribadi menggunakan HTML, CSS, dan JavaScript', '2025-06-15 23:59:59'),
+(1, 'Analisis Framework PHP', 'Lakukan analisis perbandingan antara framework Laravel dan CodeIgniter', '2025-06-20 23:59:59'),
+(2, 'ERD Sistem Perpustakaan', 'Buat Entity Relationship Diagram untuk sistem perpustakaan lengkap dengan normalisasi', '2025-06-18 23:59:59');
